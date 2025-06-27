@@ -1,0 +1,90 @@
+name: Validate age
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: Dia de nacimiento
+        required: true
+        type: string
+      month:
+        description: Mes de nacimiento
+        required: true
+        type: choice
+        options:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
+          - 9
+          - 10
+          - 11
+          - 12
+      year:
+        description: Año de nacimiento (Formato YYYY)
+        required: true
+        type: string
+
+jobs:
+  calculate_age:
+    runs-on: ubuntu-latest
+    name: Calcular edad
+    outputs:
+      age: ${{ steps.age.outputs.age }}
+    steps:
+      - name: calculate_age
+        id: age
+        run: |
+          actual_year=$(date +%Y)
+          actual_month=$(date +%m)
+          actual_day=$(date +%d)
+          year_age=$((actual_year - YEAR_BIRTHDAY))
+          if [[ $MONTH_BIRTHDAY -gt $actual_month ]]; then
+              year_age=$((year_age - 1))
+              aux=$((MONTH_BIRTHDAY - actual_month))
+              month_age=$((12 - aux))
+          else
+              month_age=$((actual_month - MONTH_BIRTHDAY))
+          fi
+          if [[ $DAY_BIRTHDAY -gt $actual_day ]]; then
+              month_age=$((month_age - 1))
+              aux=$((DAY_BIRTHDAY - $actual_day))
+              day_age=$((30 - aux))
+          else
+              day_age=$((actual_day - DAY_BIRTHDAY))
+          fi
+          echo "Tienes $year_age años, $month_age meses y $day_age dias de edad."
+          echo "age=$year_age" >> $GITHUB_OUTPUT
+        env:
+          DAY_BIRTHDAY: ${{ inputs.day }}
+          MONTH_BIRTHDAY: ${{ inputs.month }}
+          YEAR_BIRTHDAY: ${{ inputs.year }}
+  categorize:
+    runs-on: ubuntu-latest
+    needs: calculate_age
+    name: Categorizar
+    steps:
+      - name: Set category
+        run: |
+          if [[ $AGE -le $LIM_NINEZ ]]; then
+            category="niño"
+          elif [[ $AGE -gt $LIM_NINEZ && $AGE -le $LIM_ADOLESCENCIA ]]; then
+            category="adolescente"
+          elif [[ $AGE -gt $LIM_ADOLESCENCIA && $AGE -le $LIM_ADULTO_JOVEN ]]; then
+            category="adulto joven"
+          elif [[ $AGE -gt $LIM_ADULTO_JOVEN && $AGE -le $LIM_ADULTO ]]; then
+            category="adulto"
+          elif [[ $AGE -gt $LIM_ADULTO ]]; then
+            category="adulto de tercera edad"
+          fi
+          echo "Segun tu edad ($AGE años) eres un $category"
+        env:
+          AGE: ${{ needs.calculate_age.outputs.age }}
+          LIM_NINEZ: ${{ vars.LIM_NINEZ }}
+          LIM_ADOLESCENCIA: ${{ vars.LIM_ADOLESCENCIA }}
+          LIM_ADULTO_JOVEN: ${{ vars.LIM_ADULTO_JOVEN }}
+          LIM_ADULTO: ${{ vars.LIM_ADULTO }}
